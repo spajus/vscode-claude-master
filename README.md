@@ -16,7 +16,7 @@ The mode is taken from the most recent of: the mode recorded with each prompt, t
 
 - **Click** a row to switch the Claude Code sidebar view to that session, like picking it from Claude's session history. Closed sessions are resumed. For this to work, clicking sets `claudeCode.preferredLocation` to `sidebar`, which is what Claude's own "Open in Side Bar" command does. If the session is open in its own Claude editor tab, that tab is shown instead.
 - **Untitled** is a session with no prompt yet; only the newest one is listed. Claude Code keeps such a session without an id until its first prompt, and asking it to switch to an id it doesn't know makes it start another blank session. So clicking Untitled only shows the Claude view. If another session is showing there, pick the Untitled one in Claude's own session list.
-- **×** on hover (or the right-click menu) removes a session from the list. It comes back if it starts working again.
+- **×** on hover (or the right-click menu) removes a session from the list. It comes back as soon as anything new happens in it: a prompt, a reply, a slash command, a finished agent. Closing or resuming a session (e.g. reloading the window) doesn't count.
 - **Clear all** in the title bar removes every Idle and Closed session; **Restore Removed Sessions** is in the `…` menu.
 - The view can be dragged anywhere: the bottom Panel, the Secondary Side Bar, or another view container.
 - The badge counts the sessions waiting for you.
@@ -38,7 +38,7 @@ The **Claude Master** output channel logs every change in the list.
 npm install
 npm test          # compile + unit tests
 npm run package   # produces claude-master-<version>.vsix
-code --install-extension claude-master-0.0.2.vsix
+code --install-extension claude-master-<version>.vsix
 ```
 
 Or press F5 to run it in an Extension Development Host.

@@ -284,9 +284,17 @@ export function compareSessions(a: SessionView, b: SessionView): number {
   );
 }
 
-/** A removed session comes back once it starts working (or needs you) again after removal. */
-export function shouldUndismiss(entry: Pick<RegistryEntry, 'status' | 'statusUpdatedAt'>, dismissedAt: number): boolean {
-  return (entry.status === 'busy' || entry.status === 'waiting') && (entry.statusUpdatedAt ?? 0) > dismissedAt;
+/**
+ * A removed session comes back once something happens in it after removal: it starts working or needs you,
+ * or its transcript gets a new entry (a turn too short to be caught as Working still leaves one).
+ */
+export function shouldUndismiss(
+  entry: Pick<RegistryEntry, 'status' | 'statusUpdatedAt'>,
+  dismissedAt: number,
+  lastActivityAt?: number,
+): boolean {
+  const active = (entry.status === 'busy' || entry.status === 'waiting') && (entry.statusUpdatedAt ?? 0) > dismissedAt;
+  return active || (lastActivityAt ?? 0) > dismissedAt;
 }
 
 export interface TitleSources {
@@ -348,6 +356,11 @@ export interface TranscriptState {
   mode?: string;
   /** Timestamp (ms) of the line that set `mode`. */
   modeAt?: number;
+  /**
+   * Timestamp (ms) of the newest timestamped line: a prompt, reply, tool result, command or agent notification.
+   * What Claude writes when a session is resumed or closed carries no timestamp, so it doesn't count.
+   */
+  lastActivityAt?: number;
   /** Agent ids reported finished through a `<task-notification>` (background agents). */
   completedAgentIds: Set<string>;
   /** Tool-use ids that received a real `tool_result` (finished foreground agents, among others). */
@@ -426,8 +439,26 @@ function applyModeAttachment(state: TranscriptState, type: unknown, timestamp: u
   }
 }
 
+const TIMESTAMP_KEY = '"timestamp":"';
+
+/** A line's own timestamp, found without parsing it: the top-level key always comes after any nested one. */
+function lineTimestamp(line: string): number | undefined {
+  const start = line.lastIndexOf(TIMESTAMP_KEY);
+  if (start === -1) {
+    return undefined;
+  }
+  const from = start + TIMESTAMP_KEY.length;
+  const end = line.indexOf('"', from);
+  const at = end === -1 ? NaN : Date.parse(line.slice(from, end));
+  return Number.isNaN(at) ? undefined : at;
+}
+
 /** Folds one transcript line into `state`. Returns true when something visible may have changed. */
 export function applyTranscriptLine(state: TranscriptState, line: string): boolean {
+  const at = lineTimestamp(line);
+  if (at !== undefined && at > (state.lastActivityAt ?? 0)) {
+    state.lastActivityAt = at;
+  }
   if (
     !line.includes('"ai-title"') &&
     !line.includes('"custom-title"') &&

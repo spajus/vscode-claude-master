@@ -190,7 +190,7 @@ export class SessionController implements vscode.Disposable {
 
       const dismissedAt = dismissed[entry.sessionId];
       if (dismissedAt !== undefined) {
-        if (!shouldUndismiss(entry, dismissedAt)) {
+        if (!shouldUndismiss(entry, dismissedAt, reader.state.lastActivityAt)) {
           continue;
         }
         delete dismissed[entry.sessionId];

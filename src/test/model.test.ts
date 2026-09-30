@@ -85,6 +85,26 @@ test('shouldUndismiss only on new activity after removal', () => {
   assert.ok(!shouldUndismiss({ status: 'busy', statusUpdatedAt: 50 }, 100));
   assert.ok(shouldUndismiss({ status: 'busy', statusUpdatedAt: 200 }, 100));
   assert.ok(shouldUndismiss({ status: 'waiting', statusUpdatedAt: 200 }, 100));
+  // A turn that started and finished between polls is only visible in the transcript.
+  assert.ok(shouldUndismiss({ status: 'idle', statusUpdatedAt: 200 }, 100, 150));
+  assert.ok(!shouldUndismiss({ status: 'idle', statusUpdatedAt: 200 }, 100, 90));
+});
+
+test('lastActivityAt follows timestamped lines only', () => {
+  const s = newTranscriptState();
+  applyTranscriptLine(s, JSON.stringify({ type: 'assistant', message: { content: [] }, timestamp: '2026-09-30T08:41:44.602Z' }));
+  assert.equal(s.lastActivityAt, Date.parse('2026-09-30T08:41:44.602Z'));
+  // Written when a session is resumed or closed: no timestamp, not activity.
+  applyTranscriptLine(s, JSON.stringify({ type: 'cost-state', sessionId: SID }));
+  applyTranscriptLine(s, JSON.stringify({ type: 'last-prompt', lastPrompt: 'hi', sessionId: SID }));
+  assert.equal(s.lastActivityAt, Date.parse('2026-09-30T08:41:44.602Z'));
+  // Nested timestamps come first; the line's own one is last.
+  const attachment = { type: 'attachment', attachment: { type: 'x', files: [{ timestamp: '2026-09-30T09:00:00.000Z' }] }, timestamp: '2026-09-30T08:50:00.000Z' };
+  applyTranscriptLine(s, JSON.stringify(attachment));
+  assert.equal(s.lastActivityAt, Date.parse('2026-09-30T08:50:00.000Z'));
+  // Quoted in message text (escaped quotes) it isn't a key.
+  applyTranscriptLine(s, JSON.stringify({ type: 'user', message: { content: 'see "timestamp":"2027-01-01T00:00:00Z"' } }));
+  assert.equal(s.lastActivityAt, Date.parse('2026-09-30T08:50:00.000Z'));
 });
 
 test('pickTitle priority', () => {
