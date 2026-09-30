@@ -1,0 +1,135 @@
+{
+  "name": "claude-master",
+  "displayName": "Claude Master",
+  "description": "Compact, dockable list of this window's Claude Code sessions with live status and running subagent counts.",
+  "version": "0.0.5",
+  "publisher": "local",
+  "license": "UNLICENSED",
+  "private": true,
+  "engines": {
+    "vscode": "^1.94.0"
+  },
+  "categories": [
+    "Other"
+  ],
+  "main": "./out/extension.js",
+  "activationEvents": [
+    "onStartupFinished"
+  ],
+  "contributes": {
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "claudeMaster",
+          "title": "Claude Sessions",
+          "icon": "media/sessions.svg"
+        }
+      ]
+    },
+    "views": {
+      "claudeMaster": [
+        {
+          "id": "claudeMaster.sessions",
+          "name": "Claude Sessions",
+          "icon": "media/sessions.svg",
+          "contextualTitle": "Claude Sessions"
+        }
+      ]
+    },
+    "viewsWelcome": [
+      {
+        "view": "claudeMaster.sessions",
+        "contents": "No Claude Code sessions in this window yet.\nStart one from the Claude Code panel and it will show up here."
+      }
+    ],
+    "commands": [
+      {
+        "command": "claudeMaster.openSession",
+        "title": "Open Session",
+        "category": "Claude Sessions"
+      },
+      {
+        "command": "claudeMaster.removeSession",
+        "title": "Remove from List",
+        "icon": "$(close)",
+        "category": "Claude Sessions"
+      },
+      {
+        "command": "claudeMaster.clearInactive",
+        "title": "Remove Idle and Closed Sessions",
+        "icon": "$(clear-all)",
+        "category": "Claude Sessions"
+      },
+      {
+        "command": "claudeMaster.restoreRemoved",
+        "title": "Restore Removed Sessions",
+        "category": "Claude Sessions"
+      },
+      {
+        "command": "claudeMaster.refresh",
+        "title": "Refresh",
+        "icon": "$(refresh)",
+        "category": "Claude Sessions"
+      }
+    ],
+    "menus": {
+      "commandPalette": [
+        {
+          "command": "claudeMaster.openSession",
+          "when": "false"
+        },
+        {
+          "command": "claudeMaster.removeSession",
+          "when": "false"
+        }
+      ],
+      "view/title": [
+        {
+          "command": "claudeMaster.clearInactive",
+          "when": "view == claudeMaster.sessions",
+          "group": "navigation"
+        },
+        {
+          "command": "claudeMaster.restoreRemoved",
+          "when": "view == claudeMaster.sessions",
+          "group": "1_manage@1"
+        },
+        {
+          "command": "claudeMaster.refresh",
+          "when": "view == claudeMaster.sessions",
+          "group": "1_manage@2"
+        }
+      ],
+      "view/item/context": [
+        {
+          "command": "claudeMaster.removeSession",
+          "when": "view == claudeMaster.sessions && viewItem =~ /^session\\./",
+          "group": "inline"
+        },
+        {
+          "command": "claudeMaster.openSession",
+          "when": "view == claudeMaster.sessions && viewItem =~ /^session\\./",
+          "group": "1_open"
+        },
+        {
+          "command": "claudeMaster.removeSession",
+          "when": "view == claudeMaster.sessions && viewItem =~ /^session\\./",
+          "group": "2_remove"
+        }
+      ]
+    }
+  },
+  "scripts": {
+    "vscode:prepublish": "npm run compile",
+    "compile": "tsc -p .",
+    "watch": "tsc -watch -p .",
+    "test": "npm run compile && node --test \"out/test/**/*.test.js\"",
+    "package": "vsce package --allow-missing-repository --skip-license"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "@types/vscode": "~1.94.0",
+    "@vscode/vsce": "^3.2.0",
+    "typescript": "^5.6.3"
+  }
+}
