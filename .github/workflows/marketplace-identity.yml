@@ -39,5 +39,5 @@ jobs:
             --resource 499b84ac-1321-427f-aa17-267ca6975798 \
             --query '{id: id, displayName: displayName}'
 
-      - name: Verify it can publish as spajus
-        run: npx vsce verify-pat spajus --azure-credential
+      - name: Verify it can publish as kodolinija
+        run: npx vsce verify-pat kodolinija --azure-credential

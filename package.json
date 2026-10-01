@@ -3,7 +3,7 @@
   "displayName": "Claude Master",
   "description": "Compact, dockable list of this window's Claude Code sessions with live status and running subagent counts.",
   "version": "0.1.0",
-  "publisher": "spajus",
+  "publisher": "kodolinija",
   "author": {
     "name": "Tomas Varaneckas"
   },

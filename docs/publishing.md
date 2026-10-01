@@ -21,7 +21,7 @@ Neither publish job uses a stored secret. Until a job is set up, it is skipped a
 
 Azure DevOps retires global personal access tokens on 2026-12-01, so the Marketplace job signs in with a managed identity instead.
 
-1. **Publisher.** Sign in at <https://marketplace.visualstudio.com/manage> with a Microsoft account and create the publisher **`spajus`** (the ID can't be changed later).
+1. **Publisher.** Sign in at <https://marketplace.visualstudio.com/manage> with a Microsoft account and create the publisher **`kodolinija`**. It must match `publisher` in `package.json`, and the ID can't be changed later.
 2. **Managed identity.** You need an Azure subscription; the [free account](https://azure.microsoft.com/free) works, and the identity itself costs nothing.
    1. In <https://portal.azure.com>, search for **Managed Identities** → **Create**. Pick the subscription, create a resource group (e.g. `vscode-publishing`), any region, and a name (e.g. `claude-master-publisher`).
       Use a *user-assigned managed identity*; an app registration can sign in but is refused when publishing.
@@ -37,8 +37,8 @@ Azure DevOps retires global personal access tokens on 2026-12-01, so the Marketp
 
 4. **Add the identity to the publisher.** The Marketplace only accepts the identity's *Azure DevOps profile id*, which is not the client, object or resource id.
    1. Actions → **Marketplace identity** → **Run workflow**. The "Print Azure DevOps profile id" step prints `id`. The last step fails for now, which is expected.
-   2. In the Marketplace management page: publisher `spajus` → **Members** → **Add**, paste that `id`, role **Contributor**.
-   3. Run the workflow again. "Verify it can publish as spajus" now passes.
+   2. In the Marketplace management page: publisher `kodolinija` → **Members** → **Add**, paste that `id`, role **Contributor**.
+   3. Run the workflow again. "Verify it can publish as kodolinija" now passes.
 
 Microsoft is also preparing *trusted publishing* for the Marketplace (GitHub OIDC straight to the Marketplace, with no Azure identity; vsce already has a hidden `--oidc` flag). Once it's announced, the Marketplace job can switch to it and the Azure identity can be deleted.
 
@@ -50,7 +50,7 @@ Open VSX is the registry used by Cursor, Windsurf, VSCodium and Gitpod. Trusted 
 2. Settings → **Access Tokens** → generate a token. Then, from this repository:
 
    ```sh
-   npx ovsx create-namespace spajus -p <token>
+   npx ovsx create-namespace kodolinija -p <token>
    npm run package
    npx ovsx publish claude-master-<version>.vsix -p <token>
    ```
@@ -68,7 +68,7 @@ A new namespace shows as unverified. To get the verified badge, [claim the names
 
 The GitHub Release always has the `.vsix` attached. To publish it by hand:
 
-- **Marketplace:** on <https://marketplace.visualstudio.com/manage>, publisher `spajus` → **New extension** → **Visual Studio Code**, and drop the `.vsix`. For later versions use **Update** from the extension's `…` menu.
+- **Marketplace:** on <https://marketplace.visualstudio.com/manage>, publisher `kodolinija` → **New extension** → **Visual Studio Code**, and drop the `.vsix`. For later versions use **Update** from the extension's `…` menu.
 - **Open VSX:** `npx ovsx publish <file>.vsix -p <token>`.
 
 The Marketplace takes a few minutes to scan a new version before it appears.
