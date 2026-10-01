@@ -1,0 +1,58 @@
+name: Bug report
+description: A session is missing, shows the wrong status, or clicking it does the wrong thing.
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Claude Master reads Claude Code's internal files, so a Claude Code update can break it.
+        The versions and the log below are usually enough to find out what changed.
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened?
+      description: What you did, what you expected, and what you saw instead.
+    validations:
+      required: true
+  - type: input
+    id: claude-master-version
+    attributes:
+      label: Claude Master version
+      placeholder: e.g. 0.1.0
+    validations:
+      required: true
+  - type: input
+    id: claude-code-version
+    attributes:
+      label: Claude Code extension version
+      description: Extensions view → Claude Code, or `claude --version`.
+      placeholder: e.g. 2.1.284
+    validations:
+      required: true
+  - type: input
+    id: vscode-version
+    attributes:
+      label: VS Code version
+      description: Help → About. Mention it if you use Cursor, Windsurf, VSCodium or another fork.
+      placeholder: e.g. 1.105.0
+    validations:
+      required: true
+  - type: dropdown
+    id: os
+    attributes:
+      label: Operating system
+      options:
+        - Windows
+        - macOS
+        - Linux
+        - Remote (SSH, WSL, Dev Container, Codespaces)
+    validations:
+      required: true
+  - type: textarea
+    id: log
+    attributes:
+      label: Claude Master log
+      description: |
+        View → Output, then pick **Claude Master** in the dropdown. Paste the lines from around the time of the problem.
+        Session titles appear in the log; redact anything you don't want to share.
+      render: text

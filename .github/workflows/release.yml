@@ -1,0 +1,139 @@
+name: Release
+
+# Push a tag matching package.json's version (e.g. v0.1.0) to build, create a GitHub Release
+# and publish to the VS Code Marketplace and Open VSX. One-time setup: docs/publishing.md.
+
+on:
+  push:
+    tags: ['v*']
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+      vsix: ${{ steps.version.outputs.vsix }}
+    steps:
+      - uses: actions/checkout@v7
+
+      # No dependency cache here, so a poisoned cache can't reach a release build.
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+
+      - name: Check tag matches package.json
+        id: version
+        run: |
+          VERSION=$(node -p "require('./package.json').version")
+          if [ "v$VERSION" != "$GITHUB_REF_NAME" ]; then
+            echo "::error::Tag $GITHUB_REF_NAME does not match package.json version $VERSION"
+            exit 1
+          fi
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "vsix=claude-master-$VERSION.vsix" >> "$GITHUB_OUTPUT"
+
+      - run: npm ci
+
+      - run: npm test
+
+      - run: npx vsce package --out "${{ steps.version.outputs.vsix }}"
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: vsix
+          path: ${{ steps.version.outputs.vsix }}
+          if-no-files-found: error
+
+  github-release:
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/download-artifact@v8
+        with:
+          name: vsix
+
+      - name: Create GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ needs.build.outputs.version }}
+          VSIX: ${{ needs.build.outputs.vsix }}
+        run: |
+          # Release notes are this version's section of CHANGELOG.md.
+          awk -v header="## [$VERSION]" '
+            /^## \[/ { if (found) exit; if (index($0, header) == 1) { found = 1; next } }
+            /^\[[^]]+\]: / { exit }
+            found { print }
+          ' CHANGELOG.md > notes.md
+          if [ -s notes.md ]; then
+            gh release create "$GITHUB_REF_NAME" "$VSIX" --verify-tag --title "$GITHUB_REF_NAME" --notes-file notes.md
+          else
+            gh release create "$GITHUB_REF_NAME" "$VSIX" --verify-tag --title "$GITHUB_REF_NAME" --generate-notes
+          fi
+
+  marketplace:
+    name: VS Code Marketplace
+    needs: build
+    # Skipped until the Azure managed identity is set up (docs/publishing.md).
+    if: vars.AZURE_CLIENT_ID != ''
+    runs-on: ubuntu-latest
+    environment: publish
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+
+      - run: npm ci
+
+      - uses: actions/download-artifact@v8
+        with:
+          name: vsix
+
+      - uses: azure/login@v3
+        with:
+          client-id: ${{ vars.AZURE_CLIENT_ID }}
+          tenant-id: ${{ vars.AZURE_TENANT_ID }}
+          allow-no-subscriptions: true
+
+      - run: npx vsce publish --packagePath "${{ needs.build.outputs.vsix }}" --azure-credential --skip-duplicate
+
+  openvsx:
+    name: Open VSX
+    needs: build
+    # Skipped until trusted publishing is registered on open-vsx.org (docs/publishing.md).
+    if: vars.OPENVSX_PUBLISH == 'true'
+    runs-on: ubuntu-latest
+    environment: publish
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+
+      - run: npm ci
+
+      - uses: actions/download-artifact@v8
+        with:
+          name: vsix
+
+      # Trusted publishing: ovsx trades this job's OIDC token for a short-lived Open VSX token.
+      - run: npx ovsx publish --packagePath "${{ needs.build.outputs.vsix }}" --trusted-publishing --skip-duplicate

@@ -1,0 +1,43 @@
+name: Marketplace identity
+
+# Run manually during the one-time setup in docs/publishing.md. It signs in as the Azure managed
+# identity and prints the Azure DevOps profile id, which is the only id the Marketplace publisher's
+# Members page accepts. Once that member is added, the verify step passes.
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  identity:
+    runs-on: ubuntu-latest
+    environment: publish
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+
+      - run: npm ci
+
+      - uses: azure/login@v3
+        with:
+          client-id: ${{ vars.AZURE_CLIENT_ID }}
+          tenant-id: ${{ vars.AZURE_TENANT_ID }}
+          allow-no-subscriptions: true
+
+      # 499b84ac-... is Azure DevOps' well-known application id in Microsoft Entra.
+      - name: Print Azure DevOps profile id
+        run: |
+          az rest -u https://app.vssps.visualstudio.com/_apis/profile/profiles/me \
+            --resource 499b84ac-1321-427f-aa17-267ca6975798 \
+            --query '{id: id, displayName: displayName}'
+
+      - name: Verify it can publish as spajus
+        run: npx vsce verify-pat spajus --azure-credential

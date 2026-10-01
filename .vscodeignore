@@ -1,4 +1,5 @@
 .vscode/**
+.github/**
 src/**
 out/test/**
 **/*.map
@@ -7,3 +8,8 @@ tsconfig.json
 node_modules/**
 *.vsix
 docs/**
+media/icon.svg
+.gitattributes
+.gitignore
+CONTRIBUTING.md
+package-lock.json

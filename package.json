@@ -2,9 +2,22 @@
   "name": "claude-master",
   "displayName": "Claude Master",
   "description": "Compact, dockable list of this window's Claude Code sessions with live status and running subagent counts.",
-  "version": "0.0.6",
-  "publisher": "local",
-  "license": "UNLICENSED",
+  "version": "0.1.0",
+  "publisher": "spajus",
+  "author": {
+    "name": "Tomas Varaneckas"
+  },
+  "license": "MIT",
+  "icon": "media/icon.png",
+  "galleryBanner": {
+    "color": "#1C2039",
+    "theme": "dark"
+  },
+  "pricing": "Free",
+  "homepage": "https://github.com/spajus/vscode-claude-master#readme",
+  "bugs": {
+    "url": "https://github.com/spajus/vscode-claude-master/issues"
+  },
   "repository": {
     "type": "git",
     "url": "https://github.com/spajus/vscode-claude-master.git"
@@ -14,7 +27,18 @@
     "vscode": "^1.94.0"
   },
   "categories": [
+    "AI",
     "Other"
+  ],
+  "keywords": [
+    "claude",
+    "claude code",
+    "anthropic",
+    "ai",
+    "agents",
+    "subagents",
+    "sessions",
+    "status"
   ],
   "main": "./out/extension.js",
   "activationEvents": [
@@ -128,12 +152,13 @@
     "compile": "tsc -p .",
     "watch": "tsc -watch -p .",
     "test": "npm run compile && node --test \"out/test/**/*.test.js\"",
-    "package": "vsce package --skip-license"
+    "package": "vsce package"
   },
   "devDependencies": {
     "@types/node": "^22.0.0",
     "@types/vscode": "~1.94.0",
-    "@vscode/vsce": "^3.2.0",
+    "@vscode/vsce": "^4.0.0",
+    "ovsx": "^1.2.0",
     "typescript": "^5.6.3"
   }
 }
