@@ -2,6 +2,8 @@
 
 A compact, dockable list of the Claude Code sessions running in **this VS Code window**, with live status.
 
+![Claude Master showing four sessions: one waiting for permission, two working, one idle](docs/screenshot.png)
+
 | Icon | Status | Meaning |
 |---|---|---|
 | spinning, blue | Working | Claude is working on a turn |

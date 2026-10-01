@@ -5,6 +5,10 @@
   "version": "0.0.6",
   "publisher": "local",
   "license": "UNLICENSED",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/spajus/vscode-claude-master.git"
+  },
   "private": true,
   "engines": {
     "vscode": "^1.94.0"
@@ -124,7 +128,7 @@
     "compile": "tsc -p .",
     "watch": "tsc -watch -p .",
     "test": "npm run compile && node --test \"out/test/**/*.test.js\"",
-    "package": "vsce package --allow-missing-repository --skip-license"
+    "package": "vsce package --skip-license"
   },
   "devDependencies": {
     "@types/node": "^22.0.0",

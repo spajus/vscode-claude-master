@@ -6,3 +6,4 @@ out/test/**
 tsconfig.json
 node_modules/**
 *.vsix
+docs/**
