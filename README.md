@@ -1,7 +1,6 @@
 # Claude Master
 
 [![VS Code Marketplace](https://vsmarketplacebadges.dev/version-short/kodolinija.claude-master.svg?label=VS%20Marketplace)](https://marketplace.visualstudio.com/items?itemName=kodolinija.claude-master)
-[![Open VSX](https://img.shields.io/open-vsx/v/kodolinija/claude-master?label=Open%20VSX)](https://open-vsx.org/extension/kodolinija/claude-master)
 [![CI](https://github.com/spajus/vscode-claude-master/actions/workflows/ci.yml/badge.svg)](https://github.com/spajus/vscode-claude-master/actions/workflows/ci.yml)
 
 A compact, dockable list of the Claude Code sessions running in **this VS Code window**, with live status. See at a glance which session is working, which one is waiting for your permission, and which have finished, then click to jump straight to it.
