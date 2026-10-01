@@ -35,7 +35,7 @@ npx --yes @resvg/resvg-js-cli --fit-width 256 media/icon.svg media/icon.png
 
    ```sh
    git tag v<version>
-   git push origin main v<version>
+   git push origin master v<version>
    ```
 
 The **Release** workflow checks that the tag matches `package.json`, runs the tests, attaches the `.vsix` to a GitHub Release with that version's changelog section as notes, and publishes to the VS Code Marketplace and Open VSX. The one-time setup for publishing is in [docs/publishing.md](docs/publishing.md).

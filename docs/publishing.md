@@ -15,7 +15,7 @@ Neither publish job uses a stored secret. Until a job is set up, it is skipped a
 ## 1. GitHub repository
 
 - The repository must be **public** before the first Marketplace publish. vsce rewrites the README's relative image links to `https://github.com/spajus/vscode-claude-master/raw/HEAD/...`.
-- Create an environment named **`publish`** (Settings → Environments). Under deployment branches and tags, allow branch `main` and tags `v*`. Both publish jobs and the Marketplace identity workflow run in it, and the Azure and Open VSX trust settings below are tied to it.
+- Create an environment named **`publish`** (Settings → Environments). Under deployment branches and tags, allow branch `master` and tags `v*`. Both publish jobs and the Marketplace identity workflow run in it, and the Azure and Open VSX trust settings below are tied to it.
 
 ## 2. VS Code Marketplace
 
