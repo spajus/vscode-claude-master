@@ -15,11 +15,11 @@ A compact, dockable list of the Claude Code sessions running in **this VS Code w
 |---|---|---|
 | spinning, blue | Working | Claude is working on a turn |
 | bell, orange | Permission / Input | Claude is waiting for you: a permission prompt or a question |
-| spinning, purple | N agents running | The turn is over, but background subagents are still running |
+| spinning, purple | Agents running | The turn is over, but background subagents are still running |
 | check, green | Idle | Finished, waiting for your next prompt |
 | slashed circle, grey | Closed | The session's Claude process has ended |
 
-Each row also shows the session's permission mode (`auto`, `plan`, `edits` for accept-edits, `ask` for the default mode) and how many subagents are running, e.g. `Working · auto · 2 agents · 3m`. Hover a row for details.
+The icon shows the status. Next to the title, each row shows the session's permission mode (`auto`, `plan`, `edits` for accept-edits, `ask` for the default mode), how many subagents and background tasks (shells and monitors) are running out of all the session has launched, and how long the session has been in its current state, e.g. `auto · 1/3 agents · 0/13 bg tasks · 3m`. Hover a row for the full status and details.
 
 The mode is taken from the most recent of: the mode recorded with each prompt, the mode-change entries Claude writes to the transcript, and the mode you last picked in Claude's UI. Right after a plan is approved into a mode other than auto, Claude records nothing, so the label stays blank until the next prompt.
 

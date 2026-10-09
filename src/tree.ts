@@ -1,6 +1,6 @@
 import * as vscode from 'vscode';
 import { SessionController } from './controller';
-import { agentCountText, modeName, SessionView } from './core/model';
+import { modeName, SessionView } from './core/model';
 
 function buildTooltip(v: SessionView, blank: boolean): vscode.MarkdownString {
   const md = new vscode.MarkdownString();
@@ -17,8 +17,8 @@ function buildTooltip(v: SessionView, blank: boolean): vscode.MarkdownString {
     md.appendText(`Mode: ${modeName(v.mode)}`);
     md.appendMarkdown('\n\n');
   }
-  if (v.agents.length > 0) {
-    md.appendText(`${agentCountText(v.agents.length)} running:`);
+  if (v.agentTotal > 0) {
+    md.appendText(`Agents: ${v.agents.length} running, ${v.agentTotal} launched in this session${v.agents.length > 0 ? ':' : ''}`);
     md.appendMarkdown('\n');
     for (const agent of v.agents) {
       md.appendMarkdown('- ');
@@ -26,6 +26,10 @@ function buildTooltip(v: SessionView, blank: boolean): vscode.MarkdownString {
       md.appendMarkdown('\n');
     }
     md.appendMarkdown('\n');
+  }
+  if (v.backgroundTasks.total > 0) {
+    md.appendText(`Background tasks (shells and monitors): ${v.backgroundTasks.running} running, ${v.backgroundTasks.total} launched in this session`);
+    md.appendMarkdown('\n\n');
   }
   md.appendMarkdown('---\n\n');
   md.appendText(v.cwd);
@@ -53,6 +57,8 @@ export class SessionTreeProvider implements vscode.TreeDataProvider<SessionView>
     const item = new vscode.TreeItem(v.title, vscode.TreeItemCollapsibleState.None);
     item.id = v.sessionId;
     item.description = v.description;
+    // The row shows the status only as an icon, so screen readers need it spelled out.
+    item.accessibilityInformation = { label: `${v.title}, ${v.status.short}, ${v.description}` };
     item.iconPath = new vscode.ThemeIcon(v.status.icon, v.status.color ? new vscode.ThemeColor(v.status.color) : undefined);
     item.tooltip = buildTooltip(v, this.controller.isBlank(v.sessionId));
     item.contextValue = `session.${v.status.state}`;

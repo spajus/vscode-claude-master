@@ -39,8 +39,14 @@ interface SessionAgents {
   tails: Map<string, string>;
 }
 
+export interface SessionSubagents {
+  running: SubagentInfo[];
+  /** Subagents ever launched in the session, nested ones included. */
+  total: number;
+}
+
 /**
- * Counts running subagents of a session. An agent counts as running only if its transcript was written
+ * Finds the running subagents of a session. An agent counts as running only if its transcript was written
  * after the session process started, the transcript doesn't end with an assistant `end_turn`, and the
  * parent session's transcript hasn't reported it finished.
  */
@@ -51,7 +57,7 @@ export class SubagentTracker {
     this.sessions.delete(sessionId);
   }
 
-  async running(sessionId: string, sessionDir: string, startedAt: number | undefined, transcript: TranscriptState): Promise<SubagentInfo[]> {
+  async scan(sessionId: string, sessionDir: string, startedAt: number | undefined, transcript: TranscriptState): Promise<SessionSubagents> {
     let s = this.sessions.get(sessionId);
     if (!s) {
       s = { metas: new Map(), done: new Set(), tails: new Map() };
@@ -62,15 +68,17 @@ export class SubagentTracker {
     try {
       names = await fs.promises.readdir(dir);
     } catch {
-      return [];
+      return { running: [], total: 0 };
     }
 
     const direct: AgentMeta[] = [];
     const nested: AgentMeta[] = [];
+    let total = 0;
     for (const name of names) {
       if (!name.startsWith('agent-') || !name.endsWith(META_SUFFIX)) {
         continue;
       }
+      total++;
       const agentId = name.slice('agent-'.length, -META_SUFFIX.length);
       if (s.done.has(agentId)) {
         continue;
@@ -90,7 +98,7 @@ export class SubagentTracker {
     }
     // Nested agents can't outlive the top-level agents that spawned them.
     const running = direct.length > 0 ? [...direct, ...nested] : direct;
-    return running.map(({ agentId, agentType, description }) => ({ agentId, agentType, description }));
+    return { running: running.map(({ agentId, agentType, description }) => ({ agentId, agentType, description })), total };
   }
 
   private async loadMeta(s: SessionAgents, dir: string, agentId: string): Promise<AgentMeta | undefined> {

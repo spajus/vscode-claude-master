@@ -24,7 +24,7 @@ export type DisplayState = 'waiting' | 'working' | 'agents' | 'unknown' | 'idle'
 
 export interface StatusInfo {
   state: DisplayState;
-  /** Terse text for the row description. */
+  /** Terse text for the output log and screen readers; the row itself shows the status only as an icon. */
   short: string;
   /** Full sentence for the tooltip. */
   long: string;
@@ -52,8 +52,19 @@ export interface SessionView {
   since: number;
   /** When this window first saw the session; keeps the order stable within a status group. */
   firstSeenAt: number;
+  /** Running subagents. */
   agents: SubagentInfo[];
+  /** Subagents ever launched in the session. */
+  agentTotal: number;
+  /** Background shells and monitors (background agents are in `agents`). */
+  backgroundTasks: TaskCount;
   description: string;
+}
+
+/** How many of something are running now, out of how many the session ever launched. */
+export interface TaskCount {
+  running: number;
+  total: number;
 }
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -182,8 +193,18 @@ export function formatAge(ms: number): string {
   return `${Math.floor(hours / 24)}d`;
 }
 
-export function agentCountText(count: number): string {
-  return count === 1 ? '1 agent' : `${count} agents`;
+function taskCountText({ running, total }: TaskCount, singular: string, plural: string): string {
+  return `${running}/${total} ${total === 1 ? singular : plural}`;
+}
+
+/** e.g. `1/3 agents`: running now, out of all launched in the session. */
+export function agentCountText(count: TaskCount): string {
+  return taskCountText(count, 'agent', 'agents');
+}
+
+/** e.g. `0/13 bg tasks`. */
+export function bgTaskCountText(count: TaskCount): string {
+  return taskCountText(count, 'bg task', 'bg tasks');
 }
 
 const MODE_LABELS: Record<string, string> = {
@@ -212,23 +233,21 @@ export function modeName(mode: string | undefined): string | undefined {
   return mode ? (MODE_NAMES[mode] ?? mode) : undefined;
 }
 
-/** The compact row description, e.g. `Working · auto · 2 agents · 3m`. */
-export function describeRow(status: StatusInfo, agentCount: number, since: number, now: number, mode?: string): string {
+/**
+ * The compact row description, e.g. `auto · 1/3 agents · 0/13 bg tasks · 3m`. The icon shows the status.
+ * Counts appear once the session has launched any, so the row also tells how busy the session has been.
+ */
+export function describeRow(agents: TaskCount, background: TaskCount, since: number, now: number, mode?: string): string {
   const parts: string[] = [];
   const label = modeLabel(mode);
-  if (status.state === 'agents') {
-    parts.push(`${agentCountText(agentCount)} running`);
-    if (label) {
-      parts.push(label);
-    }
-  } else {
-    parts.push(status.short);
-    if (label) {
-      parts.push(label);
-    }
-    if (agentCount > 0) {
-      parts.push(agentCountText(agentCount));
-    }
+  if (label) {
+    parts.push(label);
+  }
+  if (agents.total > 0) {
+    parts.push(agentCountText(agents));
+  }
+  if (background.total > 0) {
+    parts.push(bgTaskCountText(background));
   }
   parts.push(formatAge(now - since));
   return parts.join(' · ');
@@ -361,14 +380,31 @@ export interface TranscriptState {
    * What Claude writes when a session is resumed or closed carries no timestamp, so it doesn't count.
    */
   lastActivityAt?: number;
-  /** Agent ids reported finished through a `<task-notification>` (background agents). */
-  completedAgentIds: Set<string>;
+  /** Task ids reported finished through a `<task-notification>` or stopped with TaskStop: background agents, shells and monitors. */
+  finishedTaskIds: Set<string>;
   /** Tool-use ids that received a real `tool_result` (finished foreground agents, among others). */
   completedToolUseIds: Set<string>;
+  /** Background shells and monitors ever launched: task id → launch time (ms, 0 when unknown). */
+  backgroundTasks: Map<string, number>;
 }
 
 export function newTranscriptState(): TranscriptState {
-  return { hasPrompt: false, completedAgentIds: new Set(), completedToolUseIds: new Set() };
+  return { hasPrompt: false, finishedTaskIds: new Set(), completedToolUseIds: new Set(), backgroundTasks: new Map() };
+}
+
+/**
+ * Background shells and monitors running now, out of all the session launched. Neither outlives the Claude
+ * process, so launches from before `startedAt` belong to an earlier run of a resumed session. One stopped from
+ * Claude's UI leaves no trace and keeps counting until the process exits.
+ */
+export function backgroundTaskCount(state: Pick<TranscriptState, 'backgroundTasks' | 'finishedTaskIds'>, startedAt?: number): TaskCount {
+  let running = 0;
+  for (const [id, launchedAt] of state.backgroundTasks) {
+    if (!state.finishedTaskIds.has(id) && (startedAt === undefined || launchedAt >= startedAt)) {
+      running++;
+    }
+  }
+  return { running, total: state.backgroundTasks.size };
 }
 
 const FINISHED_TASK_STATUSES = new Set(['completed', 'failed', 'killed', 'stopped', 'error', 'cancelled', 'canceled', 'timeout', 'timed_out']);
@@ -397,14 +433,47 @@ function applyTaskNotification(state: TranscriptState, text: string): boolean {
     return false;
   }
   const status = /<status>\s*([^<\s]+)\s*<\/status>/.exec(text)?.[1]?.toLowerCase();
-  if (status && !FINISHED_TASK_STATUSES.has(status)) {
+  if (status ? !FINISHED_TASK_STATUSES.has(status) : isOngoingMonitorEvent(text)) {
     return false;
   }
-  if (state.completedAgentIds.has(id)) {
+  return addFinishedTask(state, id);
+}
+
+/** A monitor reports each event as a status-less notification; only the last one, on expiry, ends it. */
+function isOngoingMonitorEvent(text: string): boolean {
+  return /<summary>\s*Monitor event/.test(text) && !text.includes('[Monitor expired');
+}
+
+function addFinishedTask(state: TranscriptState, id: string): boolean {
+  if (state.finishedTaskIds.has(id)) {
     return false;
   }
-  state.completedAgentIds.add(id);
+  state.finishedTaskIds.add(id);
   return true;
+}
+
+const MONITOR_STARTED = 'Monitor started';
+
+/**
+ * A tool result's structured `toolUseResult`. Bash results carry `backgroundTaskId` when the command runs in the
+ * background (asked for, or moved there on timeout), Monitor results a `taskId`, and TaskStop results a `task_id`.
+ */
+function applyToolUseResult(state: TranscriptState, result: unknown, text: string, at: number | undefined): boolean {
+  if (!result || typeof result !== 'object') {
+    return false;
+  }
+  const r = result as { backgroundTaskId?: unknown; taskId?: unknown; task_id?: unknown };
+  const launched =
+    typeof r.backgroundTaskId === 'string' ? r.backgroundTaskId : typeof r.taskId === 'string' && text.startsWith(MONITOR_STARTED) ? r.taskId : undefined;
+  if (launched !== undefined) {
+    if (state.backgroundTasks.has(launched)) {
+      return false;
+    }
+    state.backgroundTasks.set(launched, at ?? 0);
+    return true;
+  }
+  // TaskStop: a shell stopped this way gets no `<task-notification>`.
+  return typeof r.task_id === 'string' ? addFinishedTask(state, r.task_id) : false;
 }
 
 function setMode(state: TranscriptState, mode: string | undefined, timestamp: unknown): boolean {
@@ -523,10 +592,12 @@ export function applyTranscriptLine(state: TranscriptState, line: string): boole
         }
         const b = block as { type?: unknown; tool_use_id?: unknown; content?: unknown; text?: unknown };
         if (b.type === 'tool_result' && typeof b.tool_use_id === 'string') {
-          if (!textOf(b.content).startsWith(ASYNC_LAUNCH_ACK) && !state.completedToolUseIds.has(b.tool_use_id)) {
+          const text = textOf(b.content);
+          if (!text.startsWith(ASYNC_LAUNCH_ACK) && !state.completedToolUseIds.has(b.tool_use_id)) {
             state.completedToolUseIds.add(b.tool_use_id);
             changed = true;
           }
+          changed = applyToolUseResult(state, o.toolUseResult, text, at) || changed;
         } else if (b.type === 'text' && typeof b.text === 'string') {
           changed = applyTaskNotification(state, b.text) || changed;
         }
@@ -568,7 +639,7 @@ export function parseAgentMeta(agentId: string, raw: unknown): AgentMeta | undef
 
 /** Whether the parent session's transcript already reports this agent as finished. */
 export function isAgentReportedDone(meta: AgentMeta, transcript: TranscriptState): boolean {
-  if (transcript.completedAgentIds.has(meta.agentId)) {
+  if (transcript.finishedTaskIds.has(meta.agentId)) {
     return true;
   }
   return !meta.background && meta.toolUseId !== undefined && transcript.completedToolUseIds.has(meta.toolUseId);

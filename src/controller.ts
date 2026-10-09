@@ -1,5 +1,6 @@
 import * as vscode from 'vscode';
 import {
+  backgroundTaskCount,
   BLANK_TITLE,
   compareSessions,
   describeRow,
@@ -11,6 +12,7 @@ import {
   resolveMode,
   SessionView,
   shouldUndismiss,
+  TaskCount,
 } from './core/model';
 import { ClaudeModeStore } from './modeStore';
 import { OwnershipChecker } from './processInfo';
@@ -21,6 +23,7 @@ import { TranscriptReader } from './transcript';
 
 const POLL_MS = 2000;
 const FORGET_CLOSED_AFTER_MS = 30 * 24 * 60 * 60 * 1000;
+const NO_TASKS: TaskCount = { running: 0, total: 0 };
 
 /** The mode Claude starts new sessions in, read the same way Claude does (user-level setting; "manual" means default). */
 function initialPermissionMode(): string | undefined {
@@ -164,7 +167,8 @@ export class SessionController implements vscode.Disposable {
       }
       await reader.update();
       const sessionDir = reader.sessionDir;
-      const agents = sessionDir ? await this.subagents.running(entry.sessionId, sessionDir, entry.startedAt, reader.state) : [];
+      const subagents = sessionDir ? await this.subagents.scan(entry.sessionId, sessionDir, entry.startedAt, reader.state) : { running: [], total: 0 };
+      const agents = subagents.running;
       const title = pickTitle({
         name: entry.name,
         nameSource: entry.nameSource,
@@ -200,6 +204,7 @@ export class SessionController implements vscode.Disposable {
       const status = describeStatus(entry.status, entry.waitingFor, agents.length, true);
       const since = entry.statusUpdatedAt ?? entry.updatedAt ?? entry.startedAt ?? now;
       const mode = resolveMode(reader.state, await this.modes.get(entry.sessionId), initialPermissionMode());
+      const backgroundTasks = backgroundTaskCount(reader.state, entry.startedAt);
       (blank ? blankViews : views).push({
         sessionId: entry.sessionId,
         title,
@@ -210,7 +215,9 @@ export class SessionController implements vscode.Disposable {
         since,
         firstSeenAt,
         agents,
-        description: describeRow(status, agents.length, since, now, mode),
+        agentTotal: subagents.total,
+        backgroundTasks,
+        description: describeRow({ running: agents.length, total: subagents.total }, backgroundTasks, since, now, mode),
       });
     }
 
@@ -256,7 +263,9 @@ export class SessionController implements vscode.Disposable {
         since: closedAt,
         firstSeenAt: session.firstSeenAt,
         agents: [],
-        description: describeRow(status, 0, closedAt, now),
+        agentTotal: 0,
+        backgroundTasks: NO_TASKS,
+        description: describeRow(NO_TASKS, NO_TASKS, closedAt, now),
       });
     }
 
@@ -284,7 +293,9 @@ export class SessionController implements vscode.Disposable {
   /** Writes the list to the "Claude Master" output channel whenever a status, title or agent count changes. */
   private logIfChanged(views: SessionView[]): void {
     const lines = views.map(
-      (v) => `${v.status.short}${v.mode ? ` [${modeLabel(v.mode)}]` : ''}${v.agents.length > 0 ? ` (+${v.agents.length} agents)` : ''}: ${v.title}`,
+      (v) =>
+        `${v.status.short}${v.mode ? ` [${modeLabel(v.mode)}]` : ''}${v.agents.length > 0 ? ` (+${v.agents.length} agents)` : ''}` +
+        `${v.backgroundTasks.running > 0 ? ` (+${v.backgroundTasks.running} bg)` : ''}: ${v.title}`,
     );
     const summary = lines.join('\n');
     if (summary !== this.lastLogged) {

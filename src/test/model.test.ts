@@ -2,6 +2,7 @@ import * as assert from 'node:assert/strict';
 import { test } from 'node:test';
 import {
   applyTranscriptLine,
+  backgroundTaskCount,
   compareSessions,
   describeRow,
   describeStatus,
@@ -58,16 +59,20 @@ test('describeStatus maps registry states', () => {
 
 test('describeRow is compact', () => {
   const now = 10 * 60_000;
-  assert.equal(describeRow(describeStatus('busy', undefined, 2, true), 2, now - 3 * 60_000, now), 'Working · 2 agents · 3m');
-  assert.equal(describeRow(describeStatus('idle', undefined, 1, true), 1, now, now), '1 agent running · now');
-  assert.equal(describeRow(describeStatus('idle', undefined, 0, true), 0, now - 30_000, now), 'Idle · now');
+  // The status is the row's icon; the text carries only what the icon can't.
+  const none = { running: 0, total: 0 };
+  assert.equal(describeRow({ running: 2, total: 3 }, none, now - 3 * 60_000, now), '2/3 agents · 3m');
+  assert.equal(describeRow({ running: 0, total: 1 }, none, now, now), '0/1 agent · now');
+  assert.equal(describeRow(none, none, now - 30_000, now), 'now');
+  assert.equal(describeRow({ running: 1, total: 3 }, { running: 0, total: 13 }, now - 3 * 60_000, now, 'auto'), 'auto · 1/3 agents · 0/13 bg tasks · 3m');
+  assert.equal(describeRow(none, { running: 1, total: 1 }, now, now), '1/1 bg task · now');
   assert.equal(formatAge(3 * 3600_000), '3h');
   assert.equal(formatAge(50 * 3600_000), '2d');
 });
 
 function view(id: string, state: 'busy' | 'waiting' | 'idle' | 'closed', firstSeenAt: number): SessionView {
   const status = state === 'closed' ? describeStatus(undefined, undefined, 0, false) : describeStatus(state, 'input needed', 0, true);
-  return { sessionId: id, title: id, cwd: '', status, since: 0, firstSeenAt, agents: [], description: '' };
+  return { sessionId: id, title: id, cwd: '', status, since: 0, firstSeenAt, agents: [], agentTotal: 0, backgroundTasks: { running: 0, total: 0 }, description: '' };
 }
 
 test('compareSessions puts waiting first and keeps groups stable', () => {
@@ -129,7 +134,7 @@ test('applyTranscriptLine tracks titles and finished agents', () => {
   assert.ok(!s.completedToolUseIds.has('toolu_bg'));
   const notification = '<task-notification>\n<task-id>a22bb</task-id>\n<tool-use-id>toolu_bg</tool-use-id>\n<status>completed</status>\n</task-notification>';
   assert.ok(applyTranscriptLine(s, JSON.stringify({ type: 'queue-operation', operation: 'enqueue', content: notification })));
-  assert.ok(s.completedAgentIds.has('a22bb'));
+  assert.ok(s.finishedTaskIds.has('a22bb'));
 
   // Foreground agent: a real tool_result is completion.
   const result = { type: 'user', message: { content: [{ type: 'tool_result', tool_use_id: 'toolu_fg', content: 'Report text' }] } };
@@ -139,8 +144,53 @@ test('applyTranscriptLine tracks titles and finished agents', () => {
   // Notification text quoted inside an unrelated message doesn't count.
   const quoted = { type: 'user', message: { content: 'look at this: <task-notification><task-id>zzz</task-id>' } };
   assert.ok(!applyTranscriptLine(s, JSON.stringify(quoted)));
-  assert.ok(!s.completedAgentIds.has('zzz'));
+  assert.ok(!s.finishedTaskIds.has('zzz'));
   assert.ok(!applyTranscriptLine(s, '{not json "ai-title"'));
+});
+
+test('applyTranscriptLine tracks background shells and monitors', () => {
+  const s = newTranscriptState();
+  const startedAt = Date.parse('2026-10-07T07:00:00.000Z');
+  const result = (text: string, toolUseResult: object, ts: string) =>
+    JSON.stringify({
+      type: 'user',
+      message: { role: 'user', content: [{ tool_use_id: 'toolu_x', type: 'tool_result', content: text, is_error: false }] },
+      timestamp: ts,
+      toolUseResult,
+    });
+  const notification = (id: string, inner: string) => `<task-notification>\n<task-id>${id}</task-id>\n${inner}\n</task-notification>`;
+  const bash = (id: string) => ({ stdout: '', stderr: '', interrupted: false, isImage: false, noOutputExpected: false, backgroundTaskId: id });
+
+  // From a run before this process started: not counted.
+  applyTranscriptLine(s, result('Command running in background with ID: bold00000.', bash('bold00000'), '2026-10-07T06:00:00.000Z'));
+  assert.ok(applyTranscriptLine(s, result('Command running in background with ID: bsh111111. Output is being written to: x', bash('bsh111111'), '2026-10-07T07:14:47.136Z')));
+  applyTranscriptLine(s, result('Command did not complete within its 600s timeout and was moved to the background (ID: bsh222222).', bash('bsh222222'), '2026-10-07T07:15:00.000Z'));
+  applyTranscriptLine(s, result('Monitor started (task bmon33333, expires in 30m unless the source ends first)', { taskId: 'bmon33333', timeoutMs: 1800000, persistent: false }, '2026-10-07T07:16:00.000Z'));
+  assert.deepEqual(backgroundTaskCount(s, startedAt), { running: 3, total: 4 });
+  assert.deepEqual(backgroundTaskCount(s), { running: 4, total: 4 });
+
+  // Monitor events have no status and don't end the monitor; the expiry event does.
+  const event = notification('bmon33333', '<summary>Monitor event: "build log"</summary>\n<event>Build finished</event>');
+  assert.ok(!applyTranscriptLine(s, JSON.stringify({ type: 'queue-operation', operation: 'enqueue', content: event })));
+  assert.deepEqual(backgroundTaskCount(s, startedAt), { running: 3, total: 4 });
+  const expired = notification('bmon33333', '<summary>Monitor event: "build log"</summary>\n<event>[Monitor expired after 30m with 1 event delivered.]</event>');
+  assert.ok(applyTranscriptLine(s, JSON.stringify({ type: 'queue-operation', operation: 'enqueue', content: expired })));
+  assert.deepEqual(backgroundTaskCount(s, startedAt), { running: 2, total: 4 });
+
+  // Completion arrives in several places; only the first counts.
+  const done = notification('bsh111111', '<tool-use-id>toolu_x</tool-use-id>\n<status>completed</status>\n<summary>Background command finished</summary>');
+  assert.ok(applyTranscriptLine(s, JSON.stringify({ type: 'queue-operation', operation: 'enqueue', content: done })));
+  assert.ok(!applyTranscriptLine(s, JSON.stringify({ type: 'queue-operation', operation: 'remove', content: done })));
+  assert.deepEqual(backgroundTaskCount(s, startedAt), { running: 1, total: 4 });
+
+  // A shell stopped with TaskStop gets no notification.
+  const stopped = { message: 'Successfully stopped task: bsh222222 (sleep 999)', task_id: 'bsh222222', task_type: 'local_bash', command: 'sleep 999' };
+  assert.ok(applyTranscriptLine(s, result(JSON.stringify(stopped), stopped, '2026-10-07T07:20:00.000Z')));
+  assert.deepEqual(backgroundTaskCount(s, startedAt), { running: 0, total: 4 });
+
+  // Other tools' results that happen to have a `taskId` aren't monitors.
+  applyTranscriptLine(s, result('Task created', { taskId: '7' }, '2026-10-07T07:21:00.000Z'));
+  assert.deepEqual(backgroundTaskCount(s, startedAt), { running: 0, total: 4 });
 });
 
 test('permission mode follows prompts and mode-change attachments', () => {
@@ -194,9 +244,10 @@ test('blank sessions: nothing has happened yet', () => {
 
 test('mode labels in the row', () => {
   const now = 10 * 60_000;
-  assert.equal(describeRow(describeStatus('busy', undefined, 2, true), 2, now - 3 * 60_000, now, 'auto'), 'Working · auto · 2 agents · 3m');
-  assert.equal(describeRow(describeStatus('idle', undefined, 0, true), 0, now, now, 'acceptEdits'), 'Idle · edits · now');
-  assert.equal(describeRow(describeStatus('idle', undefined, 2, true), 2, now, now, 'plan'), '2 agents running · plan · now');
+  const none = { running: 0, total: 0 };
+  assert.equal(describeRow({ running: 2, total: 2 }, none, now - 3 * 60_000, now, 'auto'), 'auto · 2/2 agents · 3m');
+  assert.equal(describeRow(none, none, now, now, 'acceptEdits'), 'edits · now');
+  assert.equal(describeRow({ running: 2, total: 5 }, none, now, now, 'plan'), 'plan · 2/5 agents · now');
   assert.equal(modeLabel('default'), 'ask');
   assert.equal(modeLabel('somethingNew'), 'somethingNew');
   assert.equal(modeLabel(undefined), undefined);
@@ -208,7 +259,7 @@ test('agent completion rules', () => {
   const fg = parseAgentMeta('a2', { agentType: 'Explore', description: 'y', toolUseId: 'toolu_2', spawnDepth: 1 })!;
   s.completedToolUseIds.add('toolu_1');
   assert.ok(!isAgentReportedDone(bg, s), 'background agents are not finished by their launch tool_result');
-  s.completedAgentIds.add('a1');
+  s.finishedTaskIds.add('a1');
   assert.ok(isAgentReportedDone(bg, s));
   assert.ok(!isAgentReportedDone(fg, s));
   s.completedToolUseIds.add('toolu_2');
