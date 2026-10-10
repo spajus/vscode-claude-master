@@ -60,12 +60,11 @@ test('describeStatus maps registry states', () => {
 test('describeRow is compact', () => {
   const now = 10 * 60_000;
   // The status is the row's icon; the text carries only what the icon can't.
-  const none = { running: 0, total: 0 };
-  assert.equal(describeRow({ running: 2, total: 3 }, none, now - 3 * 60_000, now), '2/3 agents · 3m');
-  assert.equal(describeRow({ running: 0, total: 1 }, none, now, now), '0/1 agent · now');
-  assert.equal(describeRow(none, none, now - 30_000, now), 'now');
-  assert.equal(describeRow({ running: 1, total: 3 }, { running: 0, total: 13 }, now - 3 * 60_000, now, 'auto'), 'auto · 1/3 agents · 0/13 bg tasks · 3m');
-  assert.equal(describeRow(none, { running: 1, total: 1 }, now, now), '1/1 bg task · now');
+  assert.equal(describeRow(2, 0, now - 3 * 60_000, now), '2 agents · 3m');
+  assert.equal(describeRow(1, 0, now, now), '1 agent · now');
+  assert.equal(describeRow(0, 0, now - 30_000, now), 'now');
+  assert.equal(describeRow(1, 2, now - 3 * 60_000, now, 'auto'), 'auto · 1 agent · 2 bg tasks · 3m');
+  assert.equal(describeRow(0, 1, now, now), '1 bg task · now');
   assert.equal(formatAge(3 * 3600_000), '3h');
   assert.equal(formatAge(50 * 3600_000), '2d');
 });
@@ -244,10 +243,9 @@ test('blank sessions: nothing has happened yet', () => {
 
 test('mode labels in the row', () => {
   const now = 10 * 60_000;
-  const none = { running: 0, total: 0 };
-  assert.equal(describeRow({ running: 2, total: 2 }, none, now - 3 * 60_000, now, 'auto'), 'auto · 2/2 agents · 3m');
-  assert.equal(describeRow(none, none, now, now, 'acceptEdits'), 'edits · now');
-  assert.equal(describeRow({ running: 2, total: 5 }, none, now, now, 'plan'), 'plan · 2/5 agents · now');
+  assert.equal(describeRow(2, 0, now - 3 * 60_000, now, 'auto'), 'auto · 2 agents · 3m');
+  assert.equal(describeRow(0, 0, now, now, 'acceptEdits'), 'edits · now');
+  assert.equal(describeRow(2, 0, now, now, 'plan'), 'plan · 2 agents · now');
   assert.equal(modeLabel('default'), 'ask');
   assert.equal(modeLabel('somethingNew'), 'somethingNew');
   assert.equal(modeLabel(undefined), undefined);

@@ -4,6 +4,12 @@ All notable changes to Claude Master are listed here. The format follows [Keep a
 
 ## [Unreleased]
 
+## [0.2.1] - 2026-10-10
+
+### Changed
+
+- Rows show only how many agents and background tasks are running, e.g. `1 agent · 2 bg tasks`, and leave them out when none are. The launched totals moved to the tooltip.
+
 ## [0.2.0] - 2026-10-09
 
 ### Added
@@ -26,6 +32,7 @@ First public release.
 - Remove sessions from the list one at a time or clear all Idle and Closed ones; a removed session comes back as soon as anything new happens in it.
 - The **Claude Master** output channel logs every change in the list.
 
-[Unreleased]: https://github.com/spajus/vscode-claude-master/compare/v0.2.0...HEAD
+[Unreleased]: https://github.com/spajus/vscode-claude-master/compare/v0.2.1...HEAD
+[0.2.1]: https://github.com/spajus/vscode-claude-master/compare/v0.2.0...v0.2.1
 [0.2.0]: https://github.com/spajus/vscode-claude-master/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/spajus/vscode-claude-master/releases/tag/v0.1.0

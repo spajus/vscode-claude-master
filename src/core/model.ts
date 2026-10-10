@@ -193,18 +193,18 @@ export function formatAge(ms: number): string {
   return `${Math.floor(hours / 24)}d`;
 }
 
-function taskCountText({ running, total }: TaskCount, singular: string, plural: string): string {
-  return `${running}/${total} ${total === 1 ? singular : plural}`;
+function countText(count: number, singular: string, plural: string): string {
+  return `${count} ${count === 1 ? singular : plural}`;
 }
 
-/** e.g. `1/3 agents`: running now, out of all launched in the session. */
-export function agentCountText(count: TaskCount): string {
-  return taskCountText(count, 'agent', 'agents');
+/** e.g. `2 agents`. */
+export function agentCountText(count: number): string {
+  return countText(count, 'agent', 'agents');
 }
 
-/** e.g. `0/13 bg tasks`. */
-export function bgTaskCountText(count: TaskCount): string {
-  return taskCountText(count, 'bg task', 'bg tasks');
+/** e.g. `1 bg task`. */
+export function bgTaskCountText(count: number): string {
+  return countText(count, 'bg task', 'bg tasks');
 }
 
 const MODE_LABELS: Record<string, string> = {
@@ -234,19 +234,19 @@ export function modeName(mode: string | undefined): string | undefined {
 }
 
 /**
- * The compact row description, e.g. `auto · 1/3 agents · 0/13 bg tasks · 3m`. The icon shows the status.
- * Counts appear once the session has launched any, so the row also tells how busy the session has been.
+ * The compact row description, e.g. `auto · 1 agent · 2 bg tasks · 3m`. The icon shows the status.
+ * Counts are of what is running now, and appear only while something is.
  */
-export function describeRow(agents: TaskCount, background: TaskCount, since: number, now: number, mode?: string): string {
+export function describeRow(agents: number, background: number, since: number, now: number, mode?: string): string {
   const parts: string[] = [];
   const label = modeLabel(mode);
   if (label) {
     parts.push(label);
   }
-  if (agents.total > 0) {
+  if (agents > 0) {
     parts.push(agentCountText(agents));
   }
-  if (background.total > 0) {
+  if (background > 0) {
     parts.push(bgTaskCountText(background));
   }
   parts.push(formatAge(now - since));

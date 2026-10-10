@@ -217,7 +217,7 @@ export class SessionController implements vscode.Disposable {
         agents,
         agentTotal: subagents.total,
         backgroundTasks,
-        description: describeRow({ running: agents.length, total: subagents.total }, backgroundTasks, since, now, mode),
+        description: describeRow(agents.length, backgroundTasks.running, since, now, mode),
       });
     }
 
@@ -265,7 +265,7 @@ export class SessionController implements vscode.Disposable {
         agents: [],
         agentTotal: 0,
         backgroundTasks: NO_TASKS,
-        description: describeRow(NO_TASKS, NO_TASKS, closedAt, now),
+        description: describeRow(0, 0, closedAt, now),
       });
     }
 
