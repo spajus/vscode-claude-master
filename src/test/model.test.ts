@@ -53,6 +53,9 @@ test('describeStatus maps registry states', () => {
   assert.equal(describeStatus('waiting', 'plan approval', 0, true).short, 'Plan approval');
   assert.equal(describeStatus('idle', undefined, 0, true).state, 'idle');
   assert.equal(describeStatus('idle', undefined, 2, true).state, 'agents');
+  assert.equal(describeStatus('idle', undefined, 0, true, 1).state, 'background');
+  assert.equal(describeStatus('idle', undefined, 2, true, 1).state, 'agents');
+  assert.equal(describeStatus('busy', undefined, 0, true, 1).state, 'working');
   assert.equal(describeStatus('busy', undefined, 0, false).state, 'closed');
   assert.equal(describeStatus('sleeping', undefined, 0, true).state, 'unknown');
 });

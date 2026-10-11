@@ -4,6 +4,12 @@ All notable changes to Claude Master are listed here. The format follows [Keep a
 
 ## [Unreleased]
 
+## [0.2.2] - 2026-10-11
+
+### Fixed
+
+- A session whose turn is over but still has background shells or monitors running shows a purple watch icon and "waiting for background tasks" instead of a green check and Idle. Clear all leaves it in the list.
+
 ## [0.2.1] - 2026-10-10
 
 ### Changed
@@ -32,7 +38,8 @@ First public release.
 - Remove sessions from the list one at a time or clear all Idle and Closed ones; a removed session comes back as soon as anything new happens in it.
 - The **Claude Master** output channel logs every change in the list.
 
-[Unreleased]: https://github.com/spajus/vscode-claude-master/compare/v0.2.1...HEAD
+[Unreleased]: https://github.com/spajus/vscode-claude-master/compare/v0.2.2...HEAD
+[0.2.2]: https://github.com/spajus/vscode-claude-master/compare/v0.2.1...v0.2.2
 [0.2.1]: https://github.com/spajus/vscode-claude-master/compare/v0.2.0...v0.2.1
 [0.2.0]: https://github.com/spajus/vscode-claude-master/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/spajus/vscode-claude-master/releases/tag/v0.1.0

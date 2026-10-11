@@ -201,10 +201,10 @@ export class SessionController implements vscode.Disposable {
         dismissedChanged = true;
       }
 
-      const status = describeStatus(entry.status, entry.waitingFor, agents.length, true);
+      const backgroundTasks = backgroundTaskCount(reader.state, entry.startedAt);
+      const status = describeStatus(entry.status, entry.waitingFor, agents.length, true, backgroundTasks.running);
       const since = entry.statusUpdatedAt ?? entry.updatedAt ?? entry.startedAt ?? now;
       const mode = resolveMode(reader.state, await this.modes.get(entry.sessionId), initialPermissionMode());
-      const backgroundTasks = backgroundTaskCount(reader.state, entry.startedAt);
       (blank ? blankViews : views).push({
         sessionId: entry.sessionId,
         title,

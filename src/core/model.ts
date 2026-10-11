@@ -20,7 +20,7 @@ export interface RegistryEntry {
   updatedAt?: number;
 }
 
-export type DisplayState = 'waiting' | 'working' | 'agents' | 'unknown' | 'idle' | 'closed';
+export type DisplayState = 'waiting' | 'working' | 'agents' | 'background' | 'unknown' | 'idle' | 'closed';
 
 export interface StatusInfo {
   state: DisplayState;
@@ -128,6 +128,7 @@ export function describeStatus(
   waitingFor: string | undefined,
   runningAgents: number,
   live: boolean,
+  runningBackgroundTasks = 0,
 ): StatusInfo {
   if (!live) {
     return {
@@ -164,6 +165,15 @@ export function describeStatus(
           short: 'Agents running',
           long: 'Turn finished, but background agents are still running',
           icon: 'loading~spin',
+          color: 'charts.purple',
+        };
+      }
+      if (runningBackgroundTasks > 0) {
+        return {
+          state: 'background',
+          short: 'Waiting on bg tasks',
+          long: 'Turn finished, waiting for background tasks',
+          icon: 'watch',
           color: 'charts.purple',
         };
       }
@@ -289,6 +299,7 @@ const STATE_RANK: Record<DisplayState, number> = {
   waiting: 0,
   working: 1,
   agents: 1,
+  background: 1,
   unknown: 2,
   idle: 3,
   closed: 4,

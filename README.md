@@ -16,6 +16,7 @@ A compact, dockable list of the Claude Code sessions running in **this VS Code w
 | spinning, blue | Working | Claude is working on a turn |
 | bell, orange | Permission / Input | Claude is waiting for you: a permission prompt or a question |
 | spinning, purple | Agents running | The turn is over, but background subagents are still running |
+| watch, purple | Waiting on bg tasks | The turn is over, but background shells or monitors are still running |
 | check, green | Idle | Finished, waiting for your next prompt |
 | slashed circle, grey | Closed | The session's Claude process has ended |
 
